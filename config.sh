@@ -46,9 +46,15 @@ timestamp() { date '+%Y-%m-%d %H:%M:%S'; }
 ts_slug()   { date '+%Y%m%d_%H%M%S'; }
 
 # ── Plan checkbox counters ─────────────────────────────────────────────────
+# NOTE: grep -c outputs the count (including "0") even on exit code 1 (no matches).
+# Using || echo "0" would double-print. Use a local var to handle both cases.
 count_remaining() {
-    grep -c '^- \[ \]' "$1" 2>/dev/null || echo "0"
+    local c
+    c=$(grep -c '^- \[ \]' "$1" 2>/dev/null) || c=0
+    echo "$c"
 }
 count_completed() {
-    grep -c '^- \[x\]' "$1" 2>/dev/null || echo "0"
+    local c
+    c=$(grep -c '^- \[x\]' "$1" 2>/dev/null) || c=0
+    echo "$c"
 }
