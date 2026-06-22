@@ -1,0 +1,7 @@
+# Logs and runtime state (auto-created)
+.omo/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

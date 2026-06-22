@@ -1,0 +1,95 @@
+// ============================================================================
+// opencode-autopilot — Example Agent Configuration
+//
+// Place this at ~/.config/opencode/oh-my-openagent.jsonc or merge with
+// your existing config. This shows the convention used by the autopilot:
+//   - sisyphus: main orchestrator (deepseek-v4-pro, question:deny)
+//   - Category-based delegation for sub-tasks
+// ============================================================================
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
+
+  "agents": {
+    // ── Orchestrator (used by loop.sh --agent sisyphus) ───────────────
+    "sisyphus": {
+      "model": "opencode-go/deepseek-v4-pro",
+      "question": "deny"          // prevent interactive questions
+    },
+
+    // ── Consultants (read-only, high-quality) ──────────────────────────
+    "oracle": {
+      "model": "opencode-go/deepseek-v4-pro"
+    },
+    "metis": {
+      "model": "opencode-go/deepseek-v4-pro"
+    },
+    "momus": {
+      "model": "opencode-go/deepseek-v4-pro"
+    },
+
+    // ── Searchers (cheap, fast) ────────────────────────────────────────
+    "librarian": {
+      "model": "opencode-go/deepseek-v4-flash",
+      "fallback_models": [
+        { "model": "opencode-go/minimax-m3" }
+      ]
+    },
+    "explore": {
+      "model": "opencode-go/deepseek-v4-flash",
+      "fallback_models": [
+        { "model": "opencode-go/minimax-m3" }
+      ]
+    },
+
+    // ── Workers ────────────────────────────────────────────────────────
+    "sisyphus-junior": {
+      "model": "opencode-go/deepseek-v4-pro",
+      "fallback_models": [
+        { "model": "opencode-go/minimax-m3" }
+      ]
+    }
+  },
+
+  // ── Task Categories (for task(category="...") delegation) ──────────
+  "categories": {
+    "visual-engineering": { "model": "opencode-go/glm-5.1" },
+    "ultrabrain":          { "model": "opencode-go/glm-5.1" },
+    "deep": {
+      "model": "opencode-go/deepseek-v4-flash",
+      "fallback_models": [
+        { "model": "opencode-go/kimi-k2.6" },
+        { "model": "opencode-go/glm-5.1" }
+      ]
+    },
+    "unspecified-low": {
+      "model": "opencode-go/kimi-k2.6",
+      "fallback_models": [
+        { "model": "opencode-go/minimax-m3" }
+      ]
+    },
+    "unspecified-high": {
+      "model": "opencode-go/kimi-k2.6",
+      "fallback_models": [
+        { "model": "opencode-go/minimax-m3" }
+      ]
+    },
+    "writing": {
+      "model": "opencode-go/kimi-k2.6",
+      "fallback_models": [
+        { "model": "opencode-go/minimax-m3" }
+      ]
+    },
+    "quick": {
+      "model": "opencode-go/minimax-m3",
+      "fallback_models": [
+        { "model": "opencode-go/minimax-m2.7" }
+      ]
+    },
+    "artistry": {
+      "model": "opencode-go/minimax-m3",
+      "fallback_models": [
+        { "model": "opencode-go/minimax-m2.7" }
+      ]
+    }
+  }
+}
