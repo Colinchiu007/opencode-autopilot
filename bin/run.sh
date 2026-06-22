@@ -53,7 +53,6 @@ LOG_FILE="$LOG_DIR/run_$(ts_slug).log"
 # ── Build command ───────────────────────────────────────────────────────────
 CMD=(
     opencode run
-    --agent "$AGENT_NAME"
     --dangerously-skip-permissions
     --file "$TASK_FILE_ABS"
     --format json
@@ -70,7 +69,7 @@ fi
 
 # ── Execute ─────────────────────────────────────────────────────────────────
 info "Starting execution..." | tee -a "$LOG_FILE"
-info "Command: opencode run --agent $AGENT_NAME --file $(basename "$TASK_FILE_ABS") ..." | tee -a "$LOG_FILE"
+info "Command: opencode run --file $(basename "$TASK_FILE_ABS") ..." | tee -a "$LOG_FILE"
 
 set +e
 timeout "$TIMEOUT" "${CMD[@]}" >> "$LOG_FILE" 2>&1

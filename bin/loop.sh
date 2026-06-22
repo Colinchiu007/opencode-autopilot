@@ -139,7 +139,6 @@ print(json.dumps(b, indent=2))
     # ── Build command ─────────────────────────────────────────────────────
     CMD=(
         opencode run
-        --agent "$AGENT_NAME"
         --dangerously-skip-permissions
         --file "$PLAN_ABS"
         --format json

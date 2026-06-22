@@ -197,6 +197,32 @@ if $ONLY_STATUS; then
     exit 0
 fi
 
+# ── Self-heal check: diagnose + fix autopilot infrastructure ──────────────
+header "PHASE 1b: Self-heal check"
+SELF_HEAL_RESULT=0
+if [[ -f "$SCRIPT_DIR/self-heal.sh" ]]; then
+    # Run diagnosis only (zero token) — captures findings for Phase 2
+    HEAL_OUTPUT=$(bash "$SCRIPT_DIR/self-heal.sh" --fix-only 2>&1) || SELF_HEAL_RESULT=$?
+    echo "$HEAL_OUTPUT"
+    # Extract health counts from the diagnosis
+    HEALTH_ISSUES=$(echo "$HEAL_OUTPUT" | grep -oE 'Total issues: [0-9]+' | grep -oE '[0-9]+' || echo "0")
+    HEALTH_AUTO=$(echo "$HEAL_OUTPUT" | grep -oE 'Auto-fixable: [0-9]+' | grep -oE '[0-9]+' || echo "0")
+    HEALTH_SISYPHUS=$(echo "$HEAL_OUTPUT" | grep -oE 'Needs Sisyphus: [0-9]+' | grep -oE '[0-9]+' || echo "0")
+    HEALTH_CRITICAL=$(echo "$HEAL_OUTPUT" | grep -oE 'Critical: [0-9]+' | grep -oE '[0-9]+' || echo "0")
+
+    if [[ "$HEALTH_SISYPHUS" -gt 0 ]] || [[ "$HEALTH_CRITICAL" -gt 0 ]]; then
+        warn "Health issues found that need Sisyphus analysis."
+    else
+        ok "Autopilot infrastructure healthy."
+    fi
+else
+    info "self-heal.sh not found — skipping health check."
+    HEALTH_ISSUES=0
+    HEALTH_SISYPHUS=0
+    HEALTH_CRITICAL=0
+fi
+echo ""
+
 # ╔═══════════════════════════════════════════════════════════════════════════╗
 # ║  PHASE 2 — Sisyphus analysis (constrained, token-efficient)             ║
 # ╚═══════════════════════════════════════════════════════════════════════════╝
@@ -233,34 +259,58 @@ info "Pending tasks found. Preparing constrained analysis..."
 
 # Build a tight prompt for sisyphus — strictly analysis only
 SYS_PROMPT=$(cat << PROMPT
-You are Sisyphus, the orchestrator. Your task is to ANALYZE project status and PRODUCE A PLAN.
+You are Sisyphus, the orchestrator. Your task is to ANALYZE project status, check infrastructure health, and PRODUCE A PLAN.
 
 ## CONSTRAINTS (MUST FOLLOW)
-- DO NOT explore the codebase. DO NOT run any tools that read project files.
-- DO NOT execute any tasks. DO NOT make any code changes.
-- You are in ANALYSIS mode only.
-- Base your analysis SOLELY on the briefing summary below.
+- DO NOT explore the codebase beyond what's needed for the health check.
+- DO NOT execute project development tasks (that comes later via loop.sh).
+- Base your analysis on the briefing summary and health diagnosis below.
 - If the briefing is unclear, state what's missing — don't guess.
 
 ## CONTEXT
 This project manages 5+ sub-products (content-aggregator, Story2Video, prompt-engine, smart-sentence-splitter, Multi-Publish, content-aggregator-shared, platform-orchestrator) under a thin-shell integration at platform-orchestrator.
+The autopilot infrastructure is at: $SCRIPT_DIR/
+
+## TASKS (in priority order)
+
+### Task A: Fix autopilot infrastructure issues (if any)
+If the Health Diagnosis below reports issues that need Sisyphus analysis:
+1. Read the relevant autopilot script(s) to understand the issue
+2. Fix the code
+3. Verify the fix (bash -n for syntax, run --diagnose to confirm)
+4. git add, git commit, git push
+
+### Task B: Produce a development plan (if pending work exists)
+If the Briefing Summary shows pending tasks:
+1. Analyze what's unfinished
+2. Write a plan to $PLAN_OUT with checkboxes
+3. Every task must include:
+   - "使用测试驱动开发方式实现" (TDD — write tests first)
+   - "openspec propose" before implementation
+   - Then "openspec apply" to implement
+
+### Task C: Produce a completion report (if no pending work)
+If all tasks are done, write a completion summary.
 
 ## WORKFLOW REQUIREMENTS
-When producing the plan, every task must include:
+When writing task descriptions, every implementation task must include:
 1. "使用测试驱动开发方式实现" (TDD — write tests first)
 2. "openspec propose" before implementation (create proposal + design + tasks via openspec CLI)
 3. Then "openspec apply" to implement the tasks
 
 ## OUTPUT
-Write your plan to: $PLAN_OUT
-
-Format: Markdown with checkboxes.
+- Fix autopilot scripts if health issues found → commit + push
+- Write plan to: $PLAN_OUT (Markdown with checkboxes)
 
 ## INPUT: Briefing Summary
 
 $(cat "$SUMMARY_FILE")
 
-Begin analysis. Output ONLY the plan file content.
+## INPUT: Health Diagnosis
+
+$(cat "$OMO_DIR/health/health-${TODAY}.log" 2>/dev/null || echo "(no health diagnosis)")
+
+Begin analysis. Fix health issues first, then produce the plan.
 PROMPT
 )
 
