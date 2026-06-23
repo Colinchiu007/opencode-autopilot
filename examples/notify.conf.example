@@ -1,0 +1,27 @@
+#!/bin/bash
+# ============================================================================
+# opencode-autopilot — Example Notification Configuration
+#
+# Copy this file to ~/.opencode-autopilot/notify.conf and fill in values.
+# This file is for reference only - DO NOT commit real credentials.
+#
+# Usage:
+#   cp examples/notify.conf.example ~/.opencode-autopilot/notify.conf
+#   chmod 600 ~/.opencode-autopilot/notify.conf
+# ============================================================================
+
+# ── Encryption Password ─────────────────────────────────────────────────────
+# Required for decrypting encrypted webhook URLs
+AUTOPILOT_SECRET="your-encryption-password-here"
+
+# ── WeChat Work Bot ──────────────────────────────────────────────────────────
+# Plain text key (not encrypted)
+WECHAT_BOT_KEY=""
+
+# ── Feishu Bot ───────────────────────────────────────────────────────────────
+# Option 1: Plain text URL (NOT recommended for git)
+FEISHU_BOT_URL=""
+
+# Option 2: Encrypted URL (safe to commit)
+# Generate with: ./bin/encrypt-url.sh "https://open.feishu.cn/open-apis/bot/v2/hook/xxxx"
+# FEISHU_BOT_URL_ENC="U2FsdGVkX1+..."

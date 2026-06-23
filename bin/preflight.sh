@@ -81,15 +81,19 @@ echo ""
 
 # ── 4. Python ───────────────────────────────────────────────────────────────
 echo -e "${CYAN}[4/8] Python${NC}"
-for py in python3 python3.11 python3.12; do
-    if command -v "$py" &>/dev/null; then
-        VER=$("$py" --version 2>&1)
-        echo "     ✓ $VER"
-        break
+if command -v "$PYTHON_CMD" &>/dev/null; then
+    VER=$("$PYTHON_CMD" --version 2>&1)
+    echo "     ✓ Selected Python: $PYTHON_CMD ($VER)"
+    # Warn if default python3 resolves to a version < 3.10
+    if command -v python3 &>/dev/null; then
+        DEF_VER=$(python3 --version 2>&1 | grep -oP '\d+\.\d+' || echo "0")
+        if [[ "$(echo "$DEF_VER < 3.10" | bc -l 2>/dev/null)" == "1" ]]; then
+            warn "Default python3 is $DEF_VER (PYTHON_CMD=$PYTHON_CMD auto-selected)"
+            WARNED=$((WARNED + 1))
+        fi
     fi
-done
-if ! command -v python3 &>/dev/null; then
-    err "No Python 3 found"
+else
+    err "Python ($PYTHON_CMD) not found in PATH"
     FAILED=$((FAILED + 1))
 fi
 echo ""
@@ -133,8 +137,36 @@ if [[ "$MEM_PCT" -gt 90 ]]; then
 fi
 echo ""
 
-# ── 8. Process conflict check ──────────────────────────────────────────────
-echo -e "${CYAN}[8/8] Existing Processes${NC}"
+# ── 8. FFmpeg (media pipeline) ─────────────────────────────────────────────
+echo -e "${CYAN}[8/9] FFmpeg${NC}"
+if command -v ffmpeg &>/dev/null; then
+    echo "     ✓ ffmpeg: $(ffmpeg -version 2>&1 | head -1)"
+elif command -v ffprobe &>/dev/null; then
+    echo "     ✓ ffprobe found (ffmpeg not in PATH)"
+else
+    warn "ffmpeg not found (needed for video/media pipeline if Story2Video is active)"
+    WARNED=$((WARNED + 1))
+fi
+echo ""
+
+# ── 9. Notification config ──────────────────────────────────────────────────
+echo -e "${CYAN}[9/9] Notification Configuration${NC}"
+if notify_is_enabled; then
+    WECHAT_MSG="no"
+    FEISHU_MSG="no"
+    notify_is_wechat_enabled && WECHAT_MSG="yes"
+    notify_is_feishu_enabled && FEISHU_MSG="yes"
+    echo "     ✓ Notification configured (WeChat: $WECHAT_MSG, Feishu: $FEISHU_MSG)"
+else
+    warn "No notification channels configured."
+    echo "     Set WECHAT_BOT_KEY or FEISHU_BOT_URL for alerts."
+    echo "     See notify-config.sh for details."
+    WARNED=$((WARNED + 1))
+fi
+echo ""
+
+# ── 10. Process conflict check ──────────────────────────────────────────────
+echo -e "${CYAN}[10/10] Existing Processes${NC}"
 EXISTING=$(ps aux | grep "opencode run" | grep -v grep | wc -l)
 if [[ "$EXISTING" -gt 0 ]]; then
     warn "Found $EXISTING existing opencode run process(es)"
@@ -157,7 +189,7 @@ elif [[ "$WARNED" -gt 0 ]]; then
     warn "0 critical, $WARNED warnings — proceeding (set ALLOW_WARN_FAIL=true to override)"
     echo ""
 else
-    ok "All 8 checks passed!"
+    ok "All 10 checks passed!"
     echo ""
 fi
 

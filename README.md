@@ -115,6 +115,32 @@ Key defaults:
 | `SKIP_STUCK` | `false` | Auto-skip stalled tasks |
 | `STUCK_THRESHOLD` | `3` | Cycles before marking stuck |
 
+### Notification Setup
+
+Configure webhook notifications for important events (start, completion, errors):
+
+```bash
+# Interactive setup wizard
+./bin/setup-notify.sh
+
+# Or manually encrypt a URL
+./bin/encrypt-url.sh "https://open.feishu.cn/open-apis/bot/v2/hook/xxxx"
+```
+
+**Supported channels:**
+- **Feishu Bot** — Interactive card messages
+- **WeChat Work Bot** — Markdown messages
+
+**Security:** Use encrypted URLs to safely commit to git:
+
+```bash
+# 1. Set encryption password in ~/.opencode-autopilot/notify.conf
+# 2. Encrypt your webhook URL
+FEISHU_BOT_URL_ENC=$(./bin/encrypt-url.sh "https://open.feishu.cn/...")
+# 3. Add to config.sh (safe to commit)
+FEISHU_BOT_URL_ENC="U2FsdGVkX1+..."
+```
+
 ## Plan File Format
 
 The autopilot works with markdown checklist plans:
@@ -140,13 +166,20 @@ The autopilot works with markdown checklist plans:
 opencode-autopilot/
 ├── README.md
 ├── config.sh                  # Shared configuration
+├── notify-config.sh           # Notification config (supports encrypted URLs)
 ├── bin/
 │   ├── loop.sh                # Multi-cycle loop
 │   ├── run.sh                 # Single shot
 │   ├── preflight.sh           # Environment validation
-│   └── status.sh              # Runtime dashboard
+│   ├── status.sh              # Runtime dashboard
+│   ├── notify.sh              # Notification sender (shell wrapper)
+│   ├── notify.py              # Notification sender (Python)
+│   ├── encrypt-url.sh         # URL encryption tool
+│   ├── decrypt-url.sh         # URL decryption tool
+│   └── setup-notify.sh        # Interactive notification setup
 └── examples/
-    └── opencode-agent.jsonc   # Agent config template
+    ├── opencode-agent.jsonc   # Agent config template
+    └── notify.conf.example    # Notification config template
 ```
 
 Runtime state (auto-created):

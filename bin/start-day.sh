@@ -48,11 +48,11 @@ echo ""
 # ── Step 1: Verify prerequisites ────────────────────────────────────────────
 info "Step 1: Pre-flight checks..."
 
-# Python 3.11 check
-if command -v python3.11 &>/dev/null; then
-    ok "python3.11: $(python3.11 --version)"
+# Python check (using PYTHON_CMD from config)
+if command -v "$PYTHON_CMD" &>/dev/null; then
+    ok "$PYTHON_CMD: $("$PYTHON_CMD" --version)"
 else
-    err "python3.11 not found! Required for tests."
+    err "$PYTHON_CMD not found! Required for tests."
     exit 1
 fi
 
@@ -82,7 +82,6 @@ fi
 if grep -q "The agent will convert" "$PLAN_ABS" 2>/dev/null; then
     info "Step 2: Generating detailed plan from goal..."
     opencode run \
-        --agent sisyphus \
         --dangerously-skip-permissions \
         --file "$PLAN_ABS" \
         --dir "$PROJECT_DIR" \
@@ -128,3 +127,7 @@ echo "│  Monitor:  ./opencode-autopilot/bin/status.sh --watch   │"
 echo "│  Logs:     tail -f .omo/autopilot-daemon.log            │"
 echo "│  Briefing: ./opencode-autopilot/bin/check-work-status.sh│"
 echo "└──────────────────────────────────────────────────────────┘"
+
+# Notify day started
+notify "start" "Development Day Started" \
+    "Goal: ${GOAL:0:100}\\nPlan: $PLAN_FILE\\nTasks: $REMAINING remaining\\nLoop PID: $LOOP_PID"

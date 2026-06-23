@@ -69,15 +69,19 @@ exec > >(tee -a "$MAIN_LOG") 2>&1
 header "AUTOPILOT STARTED"
 info  "Plan:     $PLAN_ABS"
 info  "Timeout:  ${CYCLE_TIMEOUT}s ($((CYCLE_TIMEOUT / 60))min)"
-info  "Agent:    $AGENT_NAME"
+info  "Python:   $PYTHON_CMD ($($PYTHON_CMD --version 2>&1))"
 info  "Log:      $MAIN_LOG"
 info  "Stuck:    $( $SKIP_STUCK && echo 'skip after $STUCK_THRESHOLD cycles' || echo 'disabled' )"
+
+# Notify start
+notify "start" "Autopilot Started" "Plan: $(basename "$PLAN_ABS")\\nTimeout: ${CYCLE_TIMEOUT}s\\nMax cycles: ${MAX_ITERATIONS}"
 
 # ── State ───────────────────────────────────────────────────────────────────
 SESSION_ID=""
 FIRST_RUN=true
 PREV_REMAINING=-1
 STALL_COUNT=0
+LAST_PHASE_NOTIFY=0
 
 # ── Main loop ───────────────────────────────────────────────────────────────
 for i in $(seq 1 $MAX_ITERATIONS); do
@@ -101,7 +105,7 @@ for i in $(seq 1 $MAX_ITERATIONS); do
 
         # Update boulder
         if [[ -f "$BOULDER_FILE" ]]; then
-            python3 -c "
+            "$PYTHON_CMD" -c "
 import json
 with open('$BOULDER_FILE') as f: b = json.load(f)
 work = b.get('works', {}).get('integration-refactor', {})
@@ -110,6 +114,11 @@ if '$SESSION_ID': work.setdefault('session_ids', []).append('codex:$SESSION_ID')
 print(json.dumps(b, indent=2))
 " > "${BOULDER_FILE}.tmp" && mv "${BOULDER_FILE}.tmp" "$BOULDER_FILE" 2>/dev/null || true
         fi
+
+        # Notify completion
+        notify "complete" "All Tasks Complete!" "Plan: $(basename "$PLAN_ABS")\\n${COMPLETED}/${TOTAL} tasks done"
+        info "Post-run verification..."
+        verify_work "$PLAN_ABS" || true
 
         exit 0
     fi
@@ -197,7 +206,7 @@ print(json.dumps(b, indent=2))
     fi
     if [[ -z "$NEW_SESSION" ]]; then
         # Fallback: inside run-continuation JSON files
-        NEW_SESSION=$(ls -t "$CONTINUATION_DIR"/*.json 2>/dev/null | head -1 | xargs -I{} python3 -c "import json; print(json.load(open('{}')).get('sessionID',''))" 2>/dev/null)
+        NEW_SESSION=$(ls -t "$CONTINUATION_DIR"/*.json 2>/dev/null | head -1 | xargs -I{} "$PYTHON_CMD" -c "import json; print(json.load(open('{}')).get('sessionID',''))" 2>/dev/null)
     fi
 
     if [[ -n "$NEW_SESSION" ]]; then
@@ -208,7 +217,7 @@ print(json.dumps(b, indent=2))
         fi
         # Persist to boulder
         mkdir -p "$(dirname "$BOULDER_FILE")"
-        python3 -c "
+        "$PYTHON_CMD" -c "
 import json, os
 b = {}
 if os.path.exists('$BOULDER_FILE'):
@@ -227,6 +236,33 @@ w['remaining'] = $REMAINING
 w['updated_at'] = '$(timestamp)'
 with open('$BOULDER_FILE', 'w') as f: json.dump(b, f, indent=2)
 " 2>/dev/null || true
+    fi
+
+    # ── Phase notification ──────────────────────────────────────────────────
+    if [[ "$NOTIFY_ON_PHASE" -gt 0 ]]; then
+        PHASE_INTERVAL="$NOTIFY_ON_PHASE"
+        if (( i % PHASE_INTERVAL == 0 )) && [[ "$LAST_PHASE_NOTIFY" -ne "$i" ]]; then
+            LAST_PHASE_NOTIFY=$i
+            notify "phase" "Phase Update — Cycle $i/$MAX_ITERATIONS" \
+                "Completed: ${COMPLETED}/${TOTAL}\\nRemaining: ${REMAINING}\\nSession: ${SESSION_ID:-(none)}"
+        fi
+    fi
+
+    # ── Stuck notification ──────────────────────────────────────────────────
+    if [[ "$STALL_COUNT" -ge "$STUCK_THRESHOLD" ]]; then
+        if $SKIP_STUCK; then
+            notify "warning" "Stuck — Skipping Task" \
+                "Cycle $i - No progress for $STALL_COUNT cycles\\nRemaining: $REMAINING\\nSkipping first unchecked task"
+        else
+            notify "warning" "Stuck — Manual Intervention Needed" \
+                "Cycle $i - No progress for $STALL_COUNT cycles\\nRemaining: $REMAINING\\nSet SKIP_STUCK=true or investigate"
+        fi
+    fi
+
+    # ── Error notification ──────────────────────────────────────────────────
+    if [[ "$EXIT_CODE" -ne 0 ]] && [[ "$EXIT_CODE" -ne 124 ]]; then
+        notify "error" "Cycle $i Failed (exit $EXIT_CODE)" \
+            "Completed: ${COMPLETED}/${TOTAL}\\nRemaining: ${REMAINING}\\nExit code: ${EXIT_CODE}"
     fi
 
     # ── Pause between cycles ──────────────────────────────────────────────
