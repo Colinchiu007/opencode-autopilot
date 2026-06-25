@@ -21,6 +21,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../config.sh"
 
+# Notify start
+notify "start" "Morning Briefing Started" "Analyzing project state for $(date '+%Y-%m-%d')"
+
 ONLY_STATUS=false
 for arg in "$@"; do
     [[ "$arg" == "--status" || "$arg" == "-s" ]] && ONLY_STATUS=true
@@ -346,9 +349,20 @@ if [[ -f "$PLAN_OUT" ]]; then
         echo "  To execute: ./bin/start-day.sh"
         echo "  Or: ./bin/loop.sh --detach .omo/plans/${TODAY}.md"
     fi
+
+    # Notify result
+    if [[ "$REMAINING" -gt 0 ]]; then
+        notify "info" "Morning Briefing — $REMAINING Tasks Pending" \
+            "Plan created: ${TODAY}.md\\n${COMPLETED} done, ${REMAINING} remaining"
+    else
+        notify "complete" "Morning Briefing — All Clear" \
+            "No pending tasks. Everything up to date."
+    fi
 else
     warn "Plan file was not created (sisyphus exit code: $EXIT_CODE)"
     warn "Summary available at: $SUMMARY_FILE"
+    notify "error" "Morning Briefing Failed (exit $EXIT_CODE)" \
+        "Sisyphus analysis failed. See: $SUMMARY_FILE"
 fi
 
 exit $EXIT_CODE

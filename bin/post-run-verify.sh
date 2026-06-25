@@ -146,8 +146,10 @@ fi
 echo ""
 if [[ "$HAS_ERRORS" -eq 0 ]]; then
     echo -e "  ${GREEN}═══ All checks passed ═══${NC}"
+    notify "info" "Verification Passed" "All post-run checks passed"
 else
     echo -e "  ${RED}═══ Some checks FAILED ═══${NC}"
+    notify "warning" "Verification Failed" "Some post-run checks failed — review output"
 fi
 echo ""
 

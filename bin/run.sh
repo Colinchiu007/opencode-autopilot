@@ -71,6 +71,9 @@ fi
 info "Starting execution..." | tee -a "$LOG_FILE"
 info "Command: opencode run --file $(basename "$TASK_FILE_ABS") ..." | tee -a "$LOG_FILE"
 
+# Notify start
+notify "start" "Task Started" "Plan: $(basename "$TASK_FILE_ABS")\\nTimeout: ${TIMEOUT}s"
+
 set +e
 timeout "$TIMEOUT" "${CMD[@]}" >> "$LOG_FILE" 2>&1
 EXIT_CODE=$?
@@ -94,5 +97,13 @@ fi | tee -a "$LOG_FILE"
 
 echo "" | tee -a "$LOG_FILE"
 echo "=== Log saved: $LOG_FILE ===" | tee -a "$LOG_FILE"
+
+# ── Notify result ────────────────────────────────────────────────────────────
+if [[ "$EXIT_CODE" -eq 0 ]]; then
+    notify "complete" "Task Completed" "Plan: $(basename "$TASK_FILE_ABS")\\nSession: ${SESSION_MATCH:-(none)}"
+else
+    notify "error" "Task Failed (exit $EXIT_CODE)" \
+        "Plan: $(basename "$TASK_FILE_ABS")\\nExit code: ${EXIT_CODE}\\nSession: ${SESSION_MATCH:-(none)}"
+fi
 
 exit $EXIT_CODE

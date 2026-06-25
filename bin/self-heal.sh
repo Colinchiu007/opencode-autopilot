@@ -51,6 +51,9 @@ mkdir -p "$OMO_DIR/health"
 
 header "SELF-HEAL: Diagnostics"
 
+# Notify start
+notify "start" "Self-Heal Started" "Diagnosing autopilot infrastructure..."
+
 DIAG_FILE="$OMO_DIR/health/diagnosis-${TODAY}.txt"
 ISSUES=0         # total issue count
 CRITICAL=0       # critical (needs human)
@@ -300,14 +303,17 @@ if $DIAGNOSE_ONLY || $FIX_ONLY; then
     echo ""
     if [[ "$ISSUES" -eq 0 ]]; then
         ok "Self-heal: healthy — no issues found."
+        notify "complete" "Self-Heal: Healthy" "No issues found."
         exit 0
     elif [[ "$AUTO_FIXABLE" -gt 0 ]]; then
         ok "Self-heal: $AUTO_FIXABLE issue(s) auto-fixed."
         info "Remaining issues needing Sisyphus: $NEEDS_SISYPHUS"
         info "Run without --fix-only to engage Sisyphus analysis."
+        notify "warning" "Self-Heal: Auto-Fixed" "$AUTO_FIXABLE issue(s) fixed. $NEEDS_SISYPHUS remaining."
         exit 1
     else
         warn "Self-heal: $ISSUES issue(s) found, $NEEDS_SISYPHUS need Sisyphus analysis."
+        notify "warning" "Self-Heal: Issues Found" "$ISSUES issue(s) found — $NEEDS_SISYPHUS need Sisyphus analysis."
         exit 2
     fi
 fi
@@ -318,18 +324,21 @@ fi
 
 if [[ "$ISSUES" -eq 0 ]] && ! $FORCE_ANALYZE; then
     ok "Self-heal: healthy."
+    notify "complete" "Self-Heal: Healthy" "No issues found."
     exit 0
 fi
 
 if [[ "$CRITICAL" -gt 0 ]]; then
     err "$CRITICAL critical issue(s) — cannot auto-recover. Manual intervention needed."
     err "See: $HEALTH_LOG"
+    notify "error" "Self-Heal: Critical Issues" "$CRITICAL critical issue(s) found — manual intervention needed."
     exit 3
 fi
 
 # Only proceed to Sisyphus if there are issues it needs to handle
 if [[ "$NEEDS_SISYPHUS" -eq 0 ]] && ! $FORCE_ANALYZE; then
     ok "Self-heal: all issues auto-fixed."
+    notify "complete" "Self-Heal: All Issues Fixed" "All auto-fixable issues resolved."
     exit 0
 fi
 
@@ -382,8 +391,11 @@ EXIT_CODE=$?
 echo ""
 if [[ "$EXIT_CODE" -eq 0 ]]; then
     ok "Self-heal: Sisyphus completed fixes successfully."
+    notify "complete" "Self-Heal: Fixed by Sisyphus" "Analysis and fixes applied successfully."
 else
     warn "Self-heal: Sisyphus exited with code $EXIT_CODE — review logs."
+    notify "error" "Self-Heal: Sisyphus Failed (exit $EXIT_CODE)" \
+        "Sisyphus analysis/fix failed. See health log: $HEALTH_LOG"
 fi
 
 exit $EXIT_CODE
